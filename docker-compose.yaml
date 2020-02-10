@@ -1,0 +1,28 @@
+version: "3.3"
+services:
+  node:
+    image: node:13
+    user: node
+    ports:
+    - target: 80
+      published: 8080
+      protocol: tcp
+      mode: host
+    networks:
+    - backend
+    volumes:
+    - type: bind
+      source: /home/mikey/tin-can/tin-can-switch/src
+      target: /app
+      read_only: true
+    depends_on:
+    - mongo
+    command: ["/bin/sh", "-c", "cd /app && npm start"]
+  mongo:
+    image: mongo:3.4.24
+    networks:
+    - backend
+    expose:
+    - 27017
+networks:
+  backend:    
