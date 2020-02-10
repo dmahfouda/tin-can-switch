@@ -4,10 +4,7 @@ services:
     image: node:13
     user: node
     ports:
-    - target: 80
-      published: 8080
-      protocol: tcp
-      mode: host
+    - "8080:8080"
     networks:
     - backend
     volumes:
@@ -22,7 +19,5 @@ services:
     image: mongo:3.4.24
     networks:
     - backend
-    expose:
-    - 27017
 networks:
   backend:    

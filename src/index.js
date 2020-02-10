@@ -1,49 +1,39 @@
-var express = require('express')
-var app = express()
-var http = require('http').Server(app)
-var io = require('socket.io')(http)
-var fs = require('fs')
-var Lame = require('node-lame').Lame;
-var stream = require('stream');
-
-
-app.use(express.static('build'))
-
+const express  = require('express');
+const app      = express();
+const http     = require('http').Server(app);
+const io       = require('socket.io')(http);
+const fs       = require('fs');
+const Lame     = require('node-lame').Lame;
+const stream   = require('stream');
 const mongoose = require('mongoose')
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/cans')
 
-let db = mongoose.connection
-db.on('error', console.error.bind(console, 'connection error:'))
-db.once('open', function(callback) {
-  console.log('database connected')
-  mongoose.connection.db.listCollections().toArray((err, names) => {
-    console.log(`collection names: ${names}`); // [{ name: 'dbname.myCollection' }]
-  })
-})
+mongoose.connect('mongodb://mongo:27017/cans', { 
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+}, (err) => {
+  if (err) {
+    console.log('failed to connect to mongo database, exiting...');
+    process.exit(1);
+  } else {
+    console.log('successfully connected to mongo database');
+  }
+});
 
-let canSchema = new mongoose.Schema({
+mongoose.connection.on('error', 
+  console.error.bind(console, 'connection error:')
+);
+
+const canSchema = new mongoose.Schema({
   canName: String,
   messages: Array
-})
+});
 
-let pairs = {
+const Can = mongoose.model('Can', canSchema);
+
+const pairs = {
   '::ffff:192.168.1.6': '::ffff:192.168.1.7',
   '::ffff:192.168.1.7': '::ffff:192.168.1.6'
-}
-
-// let canPairSchema = new mongoose.Schema({
-//   can1: String,
-//   can2: String
-// }, {collection :'canPairs'})
-
-let Can = mongoose.model('Can', canSchema)
-// let CanPairs = mongoose.model('canPair', canPairSchema, 'canPairs')
-
-// CanPairs.find({}, (err, data) => {
-//   if (!err) {
-//     console.log(`data: ${data.json}`)
-//   }
-// })
+};
 
 app.get('/mp3', function(req, res) {
   let address = req.connection.remoteAddress;
@@ -82,116 +72,56 @@ app.get('/mp3', function(req, res) {
         readStream.end(result);
         readStream.pipe(res);
       }).catch(error => {
-        console.log(error)
+        console.log(error);
       });
     }
   });
 });
 
-var client;
+io.on('connection', (socket) => {
+  let address = socket.handshake.address;
+  console.log(`connected: ${address}`);
 
-io.on('connection', function(socket){
-  console.log('a user connected');
-  let address = socket.handshake.address
-  console.log(`new ip address: ${address}`)
-  Can.find( {canName:address}, (err, cans) => {
-    console.log(`cans1: ${cans}`)
+  Can.find({ canName: address }, (err, cans) => {
     if (err) {
-      return console.error(err)
+      console.error(err);
+      return;
+    }
+    if (cans.length == 0) {
+      let can = new Can({ canName: address });
+      can.save((err) => {
+        if (err) {
+          console.log(err);
+          return;
+        }
+        socket.emit('messagelength', 0);
+      })
     } else {
-      if (cans.length == 0) {
-        console.log('no can in database')
-        console.log(cans)
-        let can = new Can({canName:address})
-        can.save( err => {
-            if (err) {
-              console.log(err)
-            } else {
-              console.log('we think we saved it')
-              socket.emit('messagelength', cans[0].messages.length)
-            }
-          })
-      } else {
-        socket.emit('messagelength', cans[0].messages.length)
-        console.log('this is where we will send back can state from server')
-        console.log(`cans: ${cans}`)
-      }
+      let can = can[0];
+      socket.emit('messagelength', can.messages.length);
     }
-  })
+  });
 
-  socket.on('messageType', (msg) => {
-    var data = new Uint8Array(msg.sample);
-    if (client) {
-      client.emit('audio', data)
-    }
-    // player.feed(data);
-  })
+  socket.on('disconnect', function(){
+    console.log(`disconnected: ${address}`);
+  });
 
-  // socket.on('incomingMessage', (msg) => {
-  //   console.log(`msg: ${msg}`)
-  //   Can.update({canName:pairs[address]}, {messages:[msg]}, (err, raw) => {
-  //     // console.log(`cans2: ${cans}`)
-  //     if (!err) {
-  //       // cans.messages.push(msg.message)
-  //       // cans.save(err => {
-  //       //   if (!err) {
-  //       //     console.log('we think we saved a message')
-  //       //   }
-  //       // })
-  //       console.log(raw)
-  //     }
-  //     // else {
-  //       // console.log('no find error')
-  //     // }
-  //   })
-  // })
-
-  // socket.send('hello')
-	socket.on('disconnect', function(){
-		console.log('disconnected: ' + socket.id);
-	})
-
-    // socket.send('hello')
   socket.on('audioMessage', function(message){
-    console.log("audio message from: "+address)
-    Can.updateOne({canName:pairs[address]}, {$push:{messages:[message]}}, (err, raw) => {
-      if (!err) {
-        console.log(message["sample"])
-      } else {
+    console.log(`audio message from: ${address}`);
+    Can.updateOne({ canName: pairs[address] }, { $push: { messages: [message] }}, (err, raw) => {
+      if (err) {
         console.log(error);
+        return;
       }
-    })
-  })
+    });
+  });
+});
 
-  socket.on('chat message', function(msg){
-    // console.log('message: ' + msg);
-    io.send(msg)
-  })
+const config = {
+  host: 'localhost',
+  port: 8080,
+};
 
-  socket.on('register', () => {
-    console.log('registered');
-    client = socket.conn
-    // socket.emit('ack')
-  })
-
-  //ping();
-})
-
-
-
-// io.on('connect_error', function(connect_error){
-//   console.log('a user tried to connect');
-//   console.log(connect_error)
-// });
-
-const ping = () => {
-	console.log('led_on_before')
-	io.send('led_on')
-	console.log('led_on_after')
-}
-
-// setInterval(ping, 5000)
-
-http.listen(3000, function(){
-  console.log('listening on *:3000');
+http.listen(config, () => {
+  console.log(`listening on ${config.host}:${config.port}`);
 });
