@@ -7,7 +7,7 @@ const Lame     = require('node-lame').Lame;
 const stream   = require('stream');
 const mongoose = require('mongoose')
 
-mongoose.connect('mongodb://mongo:27017/cans', { 
+mongoose.connect('mongodb://mongo:27017/cans', {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 }, (err) => {
@@ -19,7 +19,7 @@ mongoose.connect('mongodb://mongo:27017/cans', {
   }
 });
 
-mongoose.connection.on('error', 
+mongoose.connection.on('error',
   console.error.bind(console, 'connection error:')
 );
 
@@ -31,12 +31,12 @@ const canSchema = new mongoose.Schema({
 const Can = mongoose.model('Can', canSchema);
 
 const pairs = {
-  '::ffff:192.168.1.6': '::ffff:192.168.1.7',
-  '::ffff:192.168.1.7': '::ffff:192.168.1.6'
+  'mikey': 'david',
+  'david': 'mikey'
 };
 
 app.get('/mp3', function(req, res) {
-  let address = req.connection.remoteAddress;
+  let address = req.headers["x-forwarded-for"] || req.connection.remoteAddress;
   Can.find({ canName: address }, (err, cans) => {
     if(err) {
       console.log(error);
@@ -79,7 +79,7 @@ app.get('/mp3', function(req, res) {
 });
 
 io.on('connection', (socket) => {
-  let address = socket.handshake.address;
+  let address = socket.handshake.headers["name"];
   console.log(`connected: ${address}`);
 
   Can.find({ canName: address }, (err, cans) => {
@@ -97,7 +97,7 @@ io.on('connection', (socket) => {
         socket.emit('messagelength', 0);
       })
     } else {
-      let can = can[0];
+      let can = cans[0];
       socket.emit('messagelength', can.messages.length);
     }
   });
