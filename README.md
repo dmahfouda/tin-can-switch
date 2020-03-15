@@ -41,5 +41,5 @@ docker attach <container-id>  # show stdout from the given container
 docker stack rm <name>                # shutdown all services and containers in stack
 docker container stop <container-id>  # stop container
 docker container rm <container-id>    # remove container
-docker container kill <container-id>  # remove container without stopping
+docker container kill <container-id>  # stop and remove container (ungracefully)
 ```
