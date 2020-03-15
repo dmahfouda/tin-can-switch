@@ -22,5 +22,9 @@ services:
     image: mongo:3.4.24
     networks:
     - backend
+    volumes:
+    - type: volume
+      source: mongo-volume
+      target: /data/db
 networks:
   backend:    
