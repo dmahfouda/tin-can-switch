@@ -12,7 +12,7 @@ services:
     - backend
     volumes:
     - type: bind
-      source: /home/mikey/tin-can/tin-can-switch/src
+      source: /Users/SHB/DDM/EngineeringFiles/tin-can-switch/src
       target: /app
       read_only: true
     depends_on:
@@ -27,4 +27,4 @@ services:
       source: mongo-volume
       target: /data/db
 networks:
-  backend:    
+  backend:
