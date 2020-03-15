@@ -35,6 +35,11 @@ const pairs = {
   'david': 'mikey'
 };
 
+app.get('/ping', (req, res) => {
+    console.log('ping... pong!');
+    res.send('pong!\n');
+});
+
 app.get('/mp3', function(req, res) {
   let address = req.headers["x-forwarded-for"] || req.connection.remoteAddress;
   Can.find({ canName: address }, (err, cans) => {
