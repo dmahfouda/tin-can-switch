@@ -75,3 +75,17 @@ docker service update --force ${TIN_CAN_SWITCH_STACK_NAME}_node
 
 This takes a bit longer to execute, but it is uses a fixed naming scheme and so is
 less burdensome to type.
+
+## Troublshooting
+
+To look at a container try
+
+```
+docker ps
+```
+
+insted of 
+
+```
+docker stack ps <container-name>
+```
