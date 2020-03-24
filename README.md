@@ -89,3 +89,15 @@ insted of
 ```
 docker stack ps <container-name>
 ```
+
+List stacks like this
+
+```
+docker stack ls
+```
+
+Remove stacks like this
+
+```
+docer stack rm
+```
