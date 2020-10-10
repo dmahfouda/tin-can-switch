@@ -13,7 +13,7 @@ mongoose.connect('mongodb://mongo:27017/cans', {
 }, (err) => {
   if (err) {
     console.log('failed to connect to mongo database, exiting...');
-    process.exit(1);
+    //process.exit(1);
   } else {
     console.log('successfully connected to mongo database');
   }
@@ -40,11 +40,44 @@ app.get('/ping', (req, res) => {
     res.send('pong!\n');
 });
 
+
+app.post('/message', (req, res, next) => {
+    req.pipe(fs.createWriteStream(`audio.pcm`));
+    req.on('end', next);
+    res.send('received');
+});
+
+app.get('/message', (req, res) => {
+    const encoder = new Lame({
+        output: "buffer",
+        raw: true,
+        bitwidth: 8,
+        mode: "m",
+        sfreq: 8,
+        bitrate: 64
+    }).setFile("audio.pcm");
+
+	encoder.encode().then(() => {
+	    let result = encoder.getBuffer();
+	
+	    res.status(206).header({
+	        'Content-Type': 'audio/mpeg',
+	        'Content-Length': result.length,
+	    });
+	
+	    let readStream = new stream.PassThrough();
+	    readStream.end(result);
+	    readStream.pipe(res);
+	}).catch(error => {
+	    console.log(error);
+	});     
+});
+
 app.get('/mp3', function(req, res) {
-  let address = req.headers["x-forwarded-for"] || req.connection.remoteAddress;
-  Can.find({ canName: address }, (err, cans) => {
-    if(err) {
-      console.log(error);
+let address = req.headers["x-forwarded-for"] || req.connection.remoteAddress;
+Can.find({ canName: address }, (err, cans) => {
+if(err) {
+  console.log(error);
     } else if(cans.length == 0) {
       console.log(`no cans found with name: ${name}`);
     } else {
