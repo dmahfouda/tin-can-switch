@@ -7,9 +7,9 @@ const boxSchema = new mongoose.Schema({
         dropDups: true,
         required: true,
     }, 
-    full: { 
-        type: Boolean, 
-        default: false, 
+    messageHash: { 
+        type: String, 
+        default: "", 
     },
 });
 

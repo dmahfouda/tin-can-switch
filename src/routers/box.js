@@ -3,6 +3,7 @@ const validator = require('express-validator');
 const Box       = require('../models/box');
 const logger    = require('../util/logger');
 const fs        = require('fs');
+const crypto    = require('crypto');
 
 const baseDir = '/tmp';
 
@@ -18,7 +19,7 @@ router.post('/box/:name', validator.checkSchema({
     } else {
         Box.create({
             name: req.params.name,
-            full: false,
+            messageHash: "",
         }).then((box) => {
             res.json({
                 name: box.name
@@ -43,7 +44,7 @@ router.get('/box/:name', (req, res) => {
         } else {
             res.status(200).json({
                 name: box.name,
-                full: box.full,
+                messageHash: box.messageHash,
             });
         }
     });
@@ -57,15 +58,18 @@ router.post('/box/:name/message', (req, res, next) => {
                 message: `box '${req.params.name}' does not exist`,
             });
         } else {
-	        if (box.full) {
+	        if (box.messageHash) {
 	            res.status(409).json({
 	                message: `box '${box.name}' is full`
 	            });
 	        } else {
+                const hasher = crypto.createHash('sha256');
+                req.pipe(hasher);
 	            req.pipe(fs.createWriteStream(`${baseDir}/${box.name}.pcm`));
 	            req.on('end', () => {
-	                Box.updateOne({ name: box.name }, { full: true }).then((n) => {
-	                    res.status(200).json({ name: box.name, full: true });
+                    const messageHash = hasher.digest('hex');
+	                Box.updateOne({ name: box.name }, { messageHash: messageHash }).then((n) => {
+	                    res.status(200).json({ name: box.name, messageHash: messageHash });
 	                }).catch((err) => {
                         console.log(err);
 	                    res.status(500).json({ 
@@ -87,7 +91,7 @@ router.get('/box/:name/message', (req, res) => {
                 message: `box '${req.params.name}' does not exist`
             });
         } else {
-	        if (!box.full) {
+	        if (!box.messageHash) {
 	            res.status(404).json({
 	                message: `box '${box.name}' is empty`
 	            });
@@ -98,7 +102,7 @@ router.get('/box/:name/message', (req, res) => {
 	                        message: `error reading message in box '${box.name}'`
 	                    })
 	                } else {
-	                    Box.updateOne({ name: box.name }, { full: false }).catch((err) => {
+	                    Box.updateOne({ name: box.name }, { messageHash: "" }).catch((err) => {
 	                        logger.error(err);
 	                    });
 	                    fs.unlink(`${baseDir}/${box.name}.pcm`, (err) => {
